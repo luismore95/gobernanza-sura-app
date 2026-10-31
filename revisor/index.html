@@ -1,0 +1,79 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<!-- Esta línea le prohíbe al navegador enviar datos a cualquier parte: los Excel no salen del computador. -->
+<meta http-equiv="Content-Security-Policy" content="connect-src 'none'; form-action 'none'; img-src data: blob:">
+<title>Revisor de calidad</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Sora:wght@400;600;700;800&family=Manrope:wght@400;500;600;700;800&display=swap">
+<link rel="stylesheet" href="estilo.css">
+</head>
+<body>
+<div class="bg" aria-hidden="true"><i class="blob b1"></i><i class="blob b2"></i><i class="blob b3"></i><i class="blob b4"></i></div>
+
+<div class="wrap">
+  <header class="glass head">
+    <div>
+      <h1 class="title">Revisor de calidad</h1>
+      <p class="sub">Gobernanza de datos · ARL SURA · Tus archivos no salen de este computador</p>
+    </div>
+    <div class="acciones" id="acciones" hidden>
+      <button class="btn" id="btnRevisar" type="button">Volver a revisar</button>
+      <button class="btn pri" id="btnExcel" type="button">Generar Excel de correcciones</button>
+    </div>
+  </header>
+
+  <section class="glass t-sky zona" id="zona">
+    <label class="soltar" for="selector">
+      <span class="ico" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 16V4M7 9l5-5 5 5M4 16v3a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-3"/></svg></span>
+      <strong id="zonaTitulo">Arrastra aquí tus Excel</strong>
+      <span class="mut" id="zonaTexto">o toca para elegirlos · formato .xlsx</span>
+    </label>
+    <input id="selector" type="file" accept=".xlsx" multiple>
+  </section>
+
+  <p class="aviso" id="aviso" role="status" hidden></p>
+
+  <main class="columnas" id="resultado" hidden>
+    <aside class="glass lateral">
+      <h2>Archivos</h2>
+      <ul class="lista" id="listaArchivos"></ul>
+      <div class="titulo-fila">
+        <h2>Empresas</h2>
+        <button class="enlace" id="btnLimpiar" type="button" hidden>Ver todas</button>
+      </div>
+      <ul class="lista" id="listaEmpresas"></ul>
+    </aside>
+
+    <section class="principal">
+      <div class="kpis">
+        <div class="glass t-red kpi"><b class="tab" id="kAlta">0</b><span>Prioridad alta</span></div>
+        <div class="glass t-amber kpi"><b class="tab" id="kMedia">0</b><span>Prioridad media</span></div>
+        <div class="glass t-blue kpi"><b class="tab" id="kFilas">0</b><span>Filas revisadas</span></div>
+      </div>
+      <div class="filtros">
+        <div class="chips" id="chips" role="group" aria-label="Prioridad">
+          <button type="button" class="chip on" data-p="">Todas</button>
+          <button type="button" class="chip" data-p="Alta">Alta</button>
+          <button type="button" class="chip" data-p="Media">Media</button>
+        </div>
+        <label class="campo"><span>Hoja</span><select id="filtroHoja"></select></label>
+        <label class="campo"><span>Problema</span><select id="filtroTipo"></select></label>
+      </div>
+      <p class="conteo mut" id="conteo"></p>
+      <div class="puntos" id="puntos"></div>
+      <button class="btn mas" id="btnMas" type="button" hidden>Ver más</button>
+    </section>
+  </main>
+</div>
+
+<div class="soltar-velo" id="velo" hidden><div class="glass">Suelta tus Excel aquí</div></div>
+
+<script src="js/excel.js"></script>
+<script src="js/reglas.js"></script>
+<script src="js/auditoria.js"></script>
+<script src="js/correcciones.js"></script>
+<script src="js/app.js"></script>
+</body>
+</html>
