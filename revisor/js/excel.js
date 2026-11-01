@@ -171,12 +171,12 @@ var Excel = (function () {
     return out;
   }
 
-  // Estilos: 0 normal, 1 encabezado, 2 texto ajustado, 3 alta, 4 media, 5 título, 6 subtítulo, 7 número grande, 8 celda amarilla
+  // Estilos: 0 normal, 1 encabezado, 2 texto ajustado, 3 alta, 4 media, 5 título, 6 subtítulo, 7 número grande, 8 celda amarilla, 9 a 15 colores de las dudas
   var ESTILOS = '<?xml version="1.0" encoding="UTF-8" standalone="yes"?><styleSheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">' +
     '<fonts count="6"><font><sz val="11"/><name val="Calibri"/></font><font><b/><sz val="11"/><color rgb="FFFFFFFF"/><name val="Calibri"/></font><font><b/><sz val="11"/><color rgb="FFA93226"/><name val="Calibri"/></font><font><b/><sz val="11"/><color rgb="FFB9770E"/><name val="Calibri"/></font><font><b/><sz val="18"/><color rgb="FF0D2B5E"/><name val="Calibri"/></font><font><b/><sz val="20"/><color rgb="FF1F5FBF"/><name val="Calibri"/></font></fonts>' +
-    '<fills count="4"><fill><patternFill patternType="none"/></fill><fill><patternFill patternType="gray125"/></fill><fill><patternFill patternType="solid"><fgColor rgb="FF0D2B5E"/></patternFill></fill><fill><patternFill patternType="solid"><fgColor rgb="FFFFF2CC"/></patternFill></fill></fills>' +
+    '<fills count="11"><fill><patternFill patternType="none"/></fill><fill><patternFill patternType="gray125"/></fill><fill><patternFill patternType="solid"><fgColor rgb="FF0D2B5E"/></patternFill></fill><fill><patternFill patternType="solid"><fgColor rgb="FFFFF2CC"/></patternFill></fill><fill><patternFill patternType="solid"><fgColor rgb="FFFFF200"/></patternFill></fill><fill><patternFill patternType="solid"><fgColor rgb="FFD9B3FF"/></patternFill></fill><fill><patternFill patternType="solid"><fgColor rgb="FFFFB3B3"/></patternFill></fill><fill><patternFill patternType="solid"><fgColor rgb="FFA9E5A0"/></patternFill></fill><fill><patternFill patternType="solid"><fgColor rgb="FFFFC078"/></patternFill></fill><fill><patternFill patternType="solid"><fgColor rgb="FF9CD3FF"/></patternFill></fill><fill><patternFill patternType="solid"><fgColor rgb="FFC9CED6"/></patternFill></fill></fills>' +
     '<borders count="1"><border><left/><right/><top/><bottom/><diagonal/></border></borders><cellStyleXfs count="1"><xf numFmtId="0" fontId="0" fillId="0" borderId="0"/></cellStyleXfs>' +
-    '<cellXfs count="9"><xf numFmtId="0" fontId="0" fillId="0" borderId="0" xfId="0"/>' +
+    '<cellXfs count="16"><xf numFmtId="0" fontId="0" fillId="0" borderId="0" xfId="0"/>' +
     '<xf numFmtId="0" fontId="1" fillId="2" borderId="0" xfId="0" applyFont="1" applyFill="1" applyAlignment="1"><alignment vertical="center" wrapText="1"/></xf>' +
     '<xf numFmtId="0" fontId="0" fillId="0" borderId="0" xfId="0" applyAlignment="1"><alignment vertical="top" wrapText="1"/></xf>' +
     '<xf numFmtId="0" fontId="2" fillId="0" borderId="0" xfId="0" applyFont="1" applyAlignment="1"><alignment vertical="top"/></xf>' +
@@ -184,7 +184,7 @@ var Excel = (function () {
     '<xf numFmtId="0" fontId="4" fillId="0" borderId="0" xfId="0" applyFont="1"/>' +
     '<xf numFmtId="0" fontId="0" fillId="0" borderId="0" xfId="0" applyAlignment="1"><alignment wrapText="1"/></xf>' +
     '<xf numFmtId="3" fontId="5" fillId="0" borderId="0" xfId="0" applyFont="1" applyNumberFormat="1" applyAlignment="1"><alignment horizontal="left"/></xf>' +
-    '<xf numFmtId="0" fontId="0" fillId="3" borderId="0" xfId="0" applyFill="1"/></cellXfs></styleSheet>';
+    '<xf numFmtId="0" fontId="0" fillId="3" borderId="0" xfId="0" applyFill="1"/><xf numFmtId="0" fontId="0" fillId="4" borderId="0" xfId="0" applyFill="1"/><xf numFmtId="0" fontId="0" fillId="5" borderId="0" xfId="0" applyFill="1"/><xf numFmtId="0" fontId="0" fillId="6" borderId="0" xfId="0" applyFill="1"/><xf numFmtId="0" fontId="0" fillId="7" borderId="0" xfId="0" applyFill="1"/><xf numFmtId="0" fontId="0" fillId="8" borderId="0" xfId="0" applyFill="1"/><xf numFmtId="0" fontId="0" fillId="9" borderId="0" xfId="0" applyFill="1"/><xf numFmtId="0" fontId="0" fillId="10" borderId="0" xfId="0" applyFill="1"/></cellXfs></styleSheet>';
 
   function celdaXml(valor, col, fila) {
     var c = valor !== null && typeof valor === 'object' ? valor : { v: valor };

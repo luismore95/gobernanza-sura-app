@@ -6,15 +6,24 @@ var Reglas = {
   anioInicio: 2008,
   anioAlcance: 2020,
 
-  hojasPlantilla: ['MP+SiO2', 'Químicos', 'Ruido', 'Sonometría', 'Vibraciones CE', 'Vibraciones MB', 'Iluminación', 'Gases', 'EstresTCalor', 'EstresTFrío', 'Fibras', 'Confort Térmico'],
+  hojasPlantilla: ['MP+SiO2', 'Químicos', 'Ruido', 'Sonometría', 'Vibraciones CE', 'Vibraciones MB', 'Iluminación', 'Gases', 'EstresTCalor', 'EstresTFrío', 'Fibras', 'Confort Térmico', 'Temperatura'],
+
+  // Hojas de control de TI: no traen mediciones, así que no se auditan.
+  hojasDeControl: /^(bitácora|bitacora|trazabilidad)/i,
 
   // Escala del grado de riesgo por agente, según la respuesta de TI. Se compara sin importar mayúsculas.
   escalaGeneral: ['a', 'b', 'c', 'd', 'e'],
   escalasPorHoja: {
+    // Yannet confirmó que Ruido llega hasta la F (negro). Sonometría también la trae en la base.
+    'Ruido': ['a', 'b', 'c', 'd', 'e', 'f'],
+    'Sonometría': ['a', 'b', 'c', 'd', 'e', 'f'],
     'Confort Térmico': ['confortable', 'no confortable'],
     'Iluminación': ['muy bajo', 'bajo', 'medio', 'alto', 'muy alto', 'cumple', 'no cumple']
   },
+  // Grados en palabras: tienen la misma letra en todas las hojas, así que no son un error por corregir.
+  palabrasGrado: ['muy bajo', 'bajo', 'baja', 'medio', 'media', 'alto', 'alta', 'muy alto', 'muy alta'],
   textoEscala: function (hoja) {
+    if (hoja === 'Ruido' || hoja === 'Sonometría') return 'de A a F';
     if (hoja === 'Confort Térmico') return 'Confortable o No confortable';
     if (hoja === 'Iluminación') return 'de Muy bajo a Muy alto, o Cumple / No cumple';
     return 'de A a E';
@@ -40,7 +49,7 @@ var Reglas = {
     grado: /^grado de riesgo/,
     departamento: /departamento/,
     nit: /^nit\b/,
-    sector: /^sector( economico)?$/,
+    sector: /^(sector( economico)?|actividad economica)$/,
     ciiu: /\bciiu\b/
   },
 

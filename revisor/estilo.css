@@ -33,6 +33,11 @@ h2{font:700 .95rem var(--fd);color:var(--dark);margin:0}
 .t-sky{--tint:linear-gradient(140deg,rgba(61,178,230,.20),rgba(61,178,230,.04))}
 .t-red{--tint:linear-gradient(140deg,rgba(192,57,43,.17),rgba(192,57,43,.04))}
 .t-amber{--tint:linear-gradient(140deg,rgba(214,140,20,.17),rgba(214,140,20,.04))}
+.t-green{--tint:linear-gradient(140deg,rgba(62,155,95,.17),rgba(62,155,95,.04))}
+.enlace-app{display:inline-grid;place-items:center;text-decoration:none;margin-left:auto}
+.solos{padding:14px 18px}
+.solos b{font:700 .95rem var(--fd);color:var(--dark)}
+.solos ul{list-style:none;margin:8px 0 0;padding:0;display:flex;flex-wrap:wrap;gap:6px 18px;font-size:.88rem;color:var(--mut);font-weight:600}
 .head{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:16px;padding:24px 28px;background:linear-gradient(120deg,rgba(196,222,244,.85),rgba(170,208,238,.5))}
 .title{font:800 clamp(1.9rem,4.4vw,3rem)/1.05 var(--fd);letter-spacing:-.03em;margin:0;background:linear-gradient(100deg,#0D2B5E 0%,#1F5FBF 60%,#2B8FD0 100%);-webkit-background-clip:text;background-clip:text;color:transparent}
 .sub{margin:6px 0 0;color:var(--mut);font-weight:600}
@@ -69,7 +74,7 @@ button.fila-lista[aria-pressed=true]{background:#fff;border-color:rgba(31,95,191
 .quitar{flex:none;width:32px;height:32px;border:0;border-radius:10px;background:none;color:var(--mut);font-size:1.1rem}
 .quitar:hover{background:rgba(192,57,43,.12);color:var(--alta)}
 .principal{display:grid;gap:14px;min-width:0}
-.kpis{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px}
+.kpis{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px}
 .kpi{padding:16px 18px}
 .kpi b{display:block;font:800 clamp(1.5rem,3.4vw,2.2rem)/1.1 var(--fd);color:var(--dark)}
 .kpi span{color:var(--mut);font-weight:600;font-size:.86rem}
@@ -105,5 +110,7 @@ button.fila-lista[aria-pressed=true]{background:#fff;border-color:rgba(31,95,191
   .acciones,.acciones .btn{width:100%}
   .glass{border-radius:20px}
   .kpi{padding:12px}
+  .kpis{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .enlace-app{width:100%}
 }
 @media (prefers-reduced-motion:no-preference){.punto{animation:entra .18s ease-out}@keyframes entra{from{opacity:0;transform:translateY(4px)}}}

@@ -26,6 +26,10 @@ var Correcciones = (function () {
     r.generales.forEach(function (g) { hoja(g.hoja)[g.prioridad === 'Alta' ? 'alta' : 'media']++; });
     r.hallazgos.forEach(function (h) { var e = hoja(h.hoja); e[h.prioridad === 'Alta' ? 'alta' : 'media']++; e.celdas += h.cantidad; });
     Object.keys(porHoja).forEach(function (n) { resumen.push([n, porHoja[n].alta, porHoja[n].media, porHoja[n].celdas]); });
+    if (r.arreglos.length) {
+      resumen.push([], [{ v: 'Se arregla solo al cargar (no hay que corregirlo)', s: 1 }, { v: 'Celdas', s: 1 }]);
+      r.arreglos.forEach(function (a) { resumen.push([a.tipo, a.cantidad]); });
+    }
     resumen.push([], ['NA significa "No aplica" y no se marca donde el dato puede no aplicar. NR significa "No reporta".'], ['A medida que corrijan, cambien la columna "Estado" a "Corregido". El resumen se actualiza solo.']);
 
     var generales = [[{ v: 'Puntos generales', s: 5 }], ['Cosas que aplican a toda una hoja (columnas que no existen, hojas vacías).'], [],

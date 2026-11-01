@@ -18,12 +18,18 @@ var Auditoria = (function () {
 
   function esBajoLimite(v) { return typeof v === 'string' && /^<?\s*(loq|lod)$/i.test(v.trim()); }
 
+  function numeroConComa(v) {
+    var s = typeof v === 'string' ? v.replace(/_x000D_/g, '').trim() : '';
+    return /^-?\d+,\d+$/.test(s) ? Number(s.replace(',', '.')) : null;
+  }
+
   function normalizarUnidad(v) {
     return sinTildes(String(v)).toLowerCase().replace(/[\s()]/g, '').replace('³', '3').replace('db(a)', 'dba').replace(/^ºc$/, '°c');
   }
 
   function comoNumero(v) {
     if (typeof v === 'number') return v;
+    if (typeof v === 'string') v = v.replace(/_x000D_/g, '');
     if (typeof v === 'string' && /^\s*-?\d+(\.\d+)?\s*$/.test(v)) return Number(v);
     return null;
   }
@@ -55,7 +61,10 @@ var Auditoria = (function () {
   function revisarNit(v) {
     var s = String(v).trim();
     var m = /^(\d{8,10})(?:-(\d))?$/.exec(s);
-    if (!m) return /^[\d.\s-]+$/.test(s) && s.replace(/\D/g, '').length >= 8 ? 'formato' : 'invalido';
+    if (!m) {
+      if (/^\d[\d-]{7,}\d$/.test(s)) return 'extranjero';
+      return /^[\d.\s-]+$/.test(s) && s.replace(/\D/g, '').length >= 8 ? 'formato' : 'invalido';
+    }
     if (m[2] === undefined) return 'sinDv';
     return digitoVerificacion(m[1]) === Number(m[2]) ? 'ok' : 'dv';
   }
@@ -95,18 +104,38 @@ var Auditoria = (function () {
   }
 
   // Agrupa todas las formas de escribir cada empresa. Devuelve clave → nombre oficial (el más usado).
-  function unificarEmpresas(conteo, clavesPorArchivo) {
-    var claves = Object.keys(conteo), padre = {};
+  // Dos nombres con NIT distinto son empresas distintas, aunque se parezcan (ej.: las filiales de un grupo).
+  function unificarEmpresas(conteo, clavesPorArchivo, nitPorClave) {
+    var claves = Object.keys(conteo), padre = {}, nitsDeGrupo = {};
+    function chocan(a, b) {
+      var na = Object.keys(nitsDeGrupo[a] || {}), nb = nitsDeGrupo[b] || {};
+      return na.length > 0 && Object.keys(nb).length > 0 && !na.some(function (n) { return nb[n]; });
+    }
+    function unir(a, b) {
+      var ra = raiz(a), rb = raiz(b);
+      if (ra === rb || chocan(ra, rb)) return;
+      padre[ra] = rb;
+      nitsDeGrupo[rb] = nitsDeGrupo[rb] || {};
+      for (var n in nitsDeGrupo[ra] || {}) nitsDeGrupo[rb][n] = 1;
+    }
     function raiz(k) { while (padre[k] !== k) { padre[k] = padre[padre[k]]; k = padre[k]; } return k; }
-    claves.forEach(function (k) { padre[k] = k; });
+    claves.forEach(function (k) {
+      padre[k] = k;
+      nitsDeGrupo[k] = {};
+      for (var n in nitPorClave[k] || {}) nitsDeGrupo[k][n] = 1;
+    });
     for (var i = 0; i < claves.length; i++) {
       for (var j = i + 1; j < claves.length; j++) {
-        if (esMismaEmpresa(claves[i], claves[j])) padre[raiz(claves[i])] = raiz(claves[j]);
+        if (esMismaEmpresa(claves[i], claves[j])) unir(claves[i], claves[j]);
       }
     }
     Object.keys(clavesPorArchivo).forEach(function (a) {
       var lista = Object.keys(clavesPorArchivo[a]);
-      lista.slice(1).forEach(function (k) { padre[raiz(k)] = raiz(lista[0]); });
+      lista.slice(1).forEach(function (k) {
+        // Si solo uno de los dos trae NIT, puede ser otra empresa del mismo archivo: no se asume.
+        var conNit = function (x) { return Object.keys(nitsDeGrupo[raiz(x)] || {}).length > 0; };
+        if (conNit(k) === conNit(lista[0])) unir(k, lista[0]);
+      });
     });
     var grupos = {};
     claves.forEach(function (k) {
@@ -174,10 +203,16 @@ var Auditoria = (function () {
   function auditar(libros, hoy) {
     hoy = hoy || new Date();
     var hoyNum = hoy.getFullYear() * 10000 + (hoy.getMonth() + 1) * 100 + hoy.getDate();
-    var hallazgos = {}, generales = [], escala = {};
+    var hallazgos = {}, generales = [], escala = {}, arreglos = {}, filasListas = 0;
     var resumenArchivos = [], totalFilas = 0;
 
+    // Lo obvio no es un error: se cuenta aparte y se arregla solo al cargar.
     function agregar(p) {
+      if (p.auto) {
+        var ar = arreglos[p.autoTipo || p.tipo || p.que] = arreglos[p.autoTipo || p.tipo || p.que] || { tipo: p.autoTipo || p.tipo || p.que, cantidad: 0 };
+        ar.cantidad++;
+        return;
+      }
       var clave = [p.archivo, p.hoja, p.empresa, p.columna, p.que].join('|');
       var h = hallazgos[clave];
       if (!h) {
@@ -192,9 +227,10 @@ var Auditoria = (function () {
     // Primera pasada: leer hojas y contar nombres de empresa.
     var hojas = [], conteo = {}, nitPorClave = {}, clavesPorArchivo = {};
     libros.forEach(function (libro) {
-      var nombresHojas = libro.hojas.map(function (h) { return h.nombre; });
-      resumenArchivos.push({ archivo: libro.archivo, filas: 0, hojas: libro.hojas.length, puntos: 0 });
-      libro.hojas.forEach(function (h) {
+      var hojasMedicion = libro.hojas.filter(function (h) { return !Reglas.hojasDeControl.test(h.nombre); });
+      var nombresHojas = hojasMedicion.map(function (h) { return h.nombre; });
+      resumenArchivos.push({ archivo: libro.archivo, filas: 0, hojas: hojasMedicion.length, puntos: 0 });
+      hojasMedicion.forEach(function (h) {
         var iEnc = encontrarEncabezado(h.filas);
         if (iEnc < 0 || h.filas.length <= iEnc + 1) {
           general({ prioridad: 'Alta', archivo: libro.archivo, hoja: h.nombre, tipo: 'Hoja vacía', que: 'La hoja viene vacía, sin ninguna medición.', corregir: 'Confirmar si no hay mediciones de este factor o si faltan por cargar (TI espera que aparezcan en las empresas pendientes).' });
@@ -216,7 +252,7 @@ var Auditoria = (function () {
             clavesPorArchivo[origen][k] = 1;
           }
           var nit = colN !== undefined ? f.celdas[colN] : undefined;
-          if (!esVacio(nit) && !esNoRegistrado(nit)) {
+          if (!esVacio(nit) && !esNoRegistrado(nit) && String(nit).replace(/\D/g, "").length >= 8) {
             nitPorClave[k] = nitPorClave[k] || {};
             nitPorClave[k][baseNit(nit)] = 1;
           }
@@ -230,7 +266,7 @@ var Auditoria = (function () {
       });
     });
 
-    var oficial = unificarEmpresas(conteo, clavesPorArchivo);
+    var oficial = unificarEmpresas(conteo, clavesPorArchivo, nitPorClave);
     var clavesPorNit = {};
     Object.keys(nitPorClave).forEach(function (k) {
       Object.keys(nitPorClave[k]).forEach(function (n) {
@@ -267,6 +303,7 @@ var Auditoria = (function () {
         return { archivo: archivo, hoja: hoja, empresa: empresa, columna: letra(c), nombreColumna: nombreCol(c), fila: fila };
       }
       function con(b, extra) { for (var k in extra) b[k] = extra[k]; return b; }
+      function nitUnico(e) { return !!nitsPorEmpresa[e] && Object.keys(nitsPorEmpresa[e]).length === 1; }
 
       ctx.datos.forEach(function (f) {
         var c = f.celdas, fila = f.fila;
@@ -286,10 +323,10 @@ var Auditoria = (function () {
             var txt = String(vE), limpio = txt.trim().replace(/\s+/g, ' ');
             empresa = oficial[claveEmpresa(vE)] || limpio;
             if (limpio !== empresa) {
-              agregar(con(base(empresa, fila, ce), { prioridad: 'Alta', tipo: 'Nombre de empresa escrito distinto', que: 'Nombre de empresa escrito distinto: "' + limpio + '"', ejemplo: limpio, corregir: 'Confirmar si es la misma empresa que "' + empresa + '". Si lo es, escribirla igual en todas las filas; si es otra empresa, dejarla y avisar.' }));
+              agregar(con(base(empresa, fila, ce), { auto: nitUnico(empresa), autoTipo: 'Nombres de empresa unificados', prioridad: 'Alta', tipo: 'Nombre de empresa escrito distinto', que: 'Nombre de empresa escrito distinto: "' + limpio + '"', ejemplo: limpio, corregir: 'Confirmar si es la misma empresa que "' + empresa + '". Si lo es, escribirla igual en todas las filas; si es otra empresa, dejarla y avisar.' }));
             }
             if (txt !== limpio) {
-              agregar(con(base(empresa, fila, ce), { prioridad: 'Alta', que: 'Nombre de empresa con espacios de más', ejemplo: txt, corregir: 'Quitar los espacios sobrantes: "' + limpio + '".' }));
+              agregar(con(base(empresa, fila, ce), { auto: true, autoTipo: 'Espacios de más quitados', prioridad: 'Alta', que: 'Nombre de empresa con espacios de más', ejemplo: txt, corregir: 'Quitar los espacios sobrantes: "' + limpio + '".' }));
             }
           }
         }
@@ -298,13 +335,11 @@ var Auditoria = (function () {
         if (roles.nit !== undefined) {
           var cn = roles.nit, vN = c[cn];
           if (esVacio(vN) || esNoRegistrado(vN)) {
-            agregar(con(base(empresa, fila, cn), { prioridad: 'Alta', que: 'NIT vacío o NR/NA', ejemplo: esVacio(vN) ? undefined : String(vN).trim(), corregir: 'Escribir el NIT de la empresa.' }));
+            agregar(con(base(empresa, fila, cn), { auto: nitUnico(empresa), autoTipo: 'NIT completado con el de la misma empresa', prioridad: 'Alta', que: 'NIT vacío o NR/NA', ejemplo: esVacio(vN) ? undefined : String(vN).trim(), corregir: 'Escribir el NIT de la empresa.' }));
           } else {
             var estadoNit = revisarNit(vN), tN = String(vN).trim();
             if (estadoNit === 'invalido' || estadoNit === 'formato') {
               agregar(con(base(empresa, fila, cn), { prioridad: 'Alta', tipo: 'NIT mal escrito', que: 'NIT mal escrito', ejemplo: tN, corregir: 'Escribirlo como 800123456-7, sin puntos ni espacios.' }));
-            } else if (estadoNit === 'sinDv') {
-              agregar(con(base(empresa, fila, cn), { prioridad: 'Media', que: 'NIT sin dígito de verificación', ejemplo: tN, corregir: 'Agregar el dígito de verificación: 800123456-7.' }));
             } else if (estadoNit === 'dv') {
               agregar(con(base(empresa, fila, cn), { prioridad: 'Media', que: 'Dígito de verificación del NIT no cuadra', ejemplo: tN, corregir: 'Revisar el NIT contra el RUT de la empresa.' }));
             }
@@ -377,7 +412,9 @@ var Auditoria = (function () {
           if (esVacio(vG)) agregar(con(base(empresa, fila, cg), { prioridad: 'Alta', que: 'Grado de riesgo vacío', corregir: 'Escribir el grado de riesgo: ' + Reglas.textoEscala(hoja) + '.' }));
           else {
             var g = String(vG).trim(), validos = Reglas.escalasPorHoja[hoja] || Reglas.escalaGeneral;
-            if (validos.indexOf(g.toLowerCase()) < 0) {
+            if (validos.indexOf(g.toLowerCase()) < 0 && Reglas.palabrasGrado.indexOf(sinTildes(g).toLowerCase()) >= 0) {
+              agregar(con(base(empresa, fila, cg), { auto: true, autoTipo: 'Grados en palabras pasados a letra', que: 'Grado en palabras' }));
+            } else if (validos.indexOf(g.toLowerCase()) < 0) {
               agregar(con(base(empresa, fila, cg), { prioridad: 'Alta', tipo: 'Grado de riesgo con otra escala', que: 'Grado de riesgo con otra escala: "' + g + '"', ejemplo: '"' + g + '"', corregir: 'Esta hoja usa ' + Reglas.textoEscala(hoja) + '. Decir a qué equivale este valor.' }));
               var ke = hoja + '|' + g;
               escala[ke] = escala[ke] || { hoja: hoja, valor: g, filas: 0 };
@@ -403,6 +440,10 @@ var Auditoria = (function () {
           else if (esNoRegistrado(vV)) agregar(con(base(empresa, fila, cv), { prioridad: 'Alta', tipo: 'Valor medido vacío o NR', que: 'Valor medido dice "' + String(vV).trim() + '"', corregir: Reglas.textosCorregir.valor }));
           else if (!esBajoLimite(vV)) {
             valNum = comoNumero(vV);
+            if (valNum === null && numeroConComa(vV) !== null) {
+              valNum = numeroConComa(vV);
+              agregar(con(base(empresa, fila, cv), { auto: true, autoTipo: 'Números con coma corregidos', que: 'Número con coma' }));
+            }
             if (valNum === null) agregar(con(base(empresa, fila, cv), { prioridad: 'Alta', que: 'Valor medido no es un número', ejemplo: '"' + String(vV).trim() + '"', corregir: 'Escribir solo el número, con punto decimal y sin unidades.' }));
             else if (valNum < 0 && !(rango.valor && rango.valor[0] < 0)) agregar(con(base(empresa, fila, cv), { prioridad: 'Alta', que: 'Valor medido negativo', ejemplo: String(valNum), corregir: 'Una concentración no puede ser negativa. Revisar qué significa este valor y corregirlo.' }));
             else if (rango.valor && (valNum < rango.valor[0] || valNum > rango.valor[1])) agregar(con(base(empresa, fila, cv), { prioridad: 'Alta', tipo: 'Unidad o escala rara', que: 'Valor fuera de lo posible para ' + String(unidadTxt).trim(), ejemplo: String(valNum), corregir: 'Revisar la unidad: debería estar entre ' + rango.valor[0] + ' y ' + rango.valor[1] + '.' }));
@@ -417,7 +458,7 @@ var Auditoria = (function () {
           else if (!esNA(vT)) {
             tlvNum = comoNumero(vT);
             if (tlvNum === null) {
-              if (!(rango.tlvTexto && /^\d+(\s*-\s*\d+)*\s*$/.test(String(vT).trim()))) agregar(con(base(empresa, fila, ct), { prioridad: 'Media', que: 'TLV no es un número', ejemplo: '"' + String(vT).trim() + '"', corregir: 'Escribir solo el número, sin símbolos ni unidades.' }));
+              if (!(rango.tlvTexto && /^\d+(\s*[-–—]+\s*\d+)*\s*$/.test(String(vT).trim()))) agregar(con(base(empresa, fila, ct), { prioridad: 'Media', que: 'TLV no es un número', ejemplo: '"' + String(vT).trim() + '"', corregir: 'Escribir solo el número, sin símbolos ni unidades.' }));
             } else if (tlvNum <= 0) {
               agregar(con(base(empresa, fila, ct), { prioridad: 'Alta', tipo: 'Unidad o escala rara', que: 'TLV en cero o negativo', ejemplo: String(tlvNum), corregir: 'Revisar el TLV: debe ser mayor que cero. Si no aplica, dejar NA.' }));
               tlvNum = null;
@@ -441,6 +482,10 @@ var Auditoria = (function () {
           else if (esNR(vI)) agregar(con(base(empresa, fila, ci), { prioridad: 'Alta', tipo: 'IR vacío o NR', que: 'IR dice "' + String(vI).trim() + '"', corregir: Reglas.textosCorregir.ir }));
           else if (!esNA(vI) && !esBajoLimite(vI)) {
             var irNum = comoNumero(vI);
+            if (irNum === null && numeroConComa(vI) !== null) {
+              irNum = numeroConComa(vI);
+              agregar(con(base(empresa, fila, ci), { auto: true, autoTipo: 'Números con coma corregidos', que: 'Número con coma' }));
+            }
             if (irNum === null) agregar(con(base(empresa, fila, ci), { prioridad: 'Media', que: 'IR no es un número', ejemplo: '"' + String(vI).trim() + '"', corregir: 'Escribir solo el número, sin el símbolo %.' }));
             else if (unidad !== 'dba' && valNum !== null && tlvNum !== null && valNum > 0 && irNum > 0) {
               // El IR puede venir como fracción o como porcentaje: se acepta cualquiera de los dos.
@@ -449,6 +494,11 @@ var Auditoria = (function () {
             }
           }
         }
+
+        // Lista para cargar: tiene empresa, NIT, año y valor.
+        var vEm = roles.empresa !== undefined ? c[roles.empresa] : undefined, vNi = roles.nit !== undefined ? c[roles.nit] : undefined;
+        var nitOk = (!esVacio(vNi) && !esNoRegistrado(vNi)) || nitUnico(empresa);
+        if (!esVacio(vEm) && !esNoRegistrado(vEm) && nitOk && anioFila !== null && (valNum !== null || esBajoLimite(c[roles.valor]))) filasListas++;
 
         // Duplicadas: la fila completa es igual a otra.
         var huella = [];
@@ -477,7 +527,7 @@ var Auditoria = (function () {
         var formas = Object.keys(unidades[u]).sort(function (a, b) { return unidades[u][b].length - unidades[u][a].length; });
         formas.slice(1).forEach(function (forma) {
           unidades[u][forma].forEach(function (r) {
-            agregar(con(base(r.empresa, r.fila, roles.unidad), { prioridad: 'Media', tipo: 'Unidad escrita distinto', que: 'Unidad escrita distinto: "' + forma + '"', ejemplo: '"' + forma + '"', corregir: 'Escribirla igual en toda la hoja: "' + formas[0] + '".' }));
+            agregar(con(base(r.empresa, r.fila, roles.unidad), { auto: true, autoTipo: 'Unidades escritas igual', prioridad: 'Media', tipo: 'Unidad escrita distinto', que: 'Unidad escrita distinto: "' + forma + '"', ejemplo: '"' + forma + '"', corregir: 'Escribirla igual en toda la hoja: "' + formas[0] + '".' }));
           });
         });
       });
@@ -510,6 +560,8 @@ var Auditoria = (function () {
 
     return {
       hallazgos: lista, generales: generales,
+      arreglos: Object.keys(arreglos).map(function (k) { return arreglos[k]; }).sort(function (a, b) { return b.cantidad - a.cantidad; }),
+      filasListas: filasListas,
       archivos: resumenArchivos, totalFilas: totalFilas,
       empresas: Object.keys(empresas).map(function (k) { return empresas[k]; }).sort(function (a, b) { return a.nombre.localeCompare(b.nombre, 'es'); }),
       escala: Object.keys(escala).map(function (k) { return escala[k]; }).sort(function (a, b) { return (a.hoja + a.valor).localeCompare(b.hoja + b.valor, 'es'); })

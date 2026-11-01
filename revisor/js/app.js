@@ -135,6 +135,12 @@
     $('kAlta').textContent = miles(alta);
     $('kMedia').textContent = miles(totalPuntos(r) - alta);
     $('kFilas').textContent = miles(r.totalFilas);
+    $('kListo').textContent = (r.totalFilas ? Math.round(r.filasListas / r.totalFilas * 100) : 0) + ' %';
+    var solos = r.arreglos.reduce(function (s, a) { return s + a.cantidad; }, 0);
+    $('solos').hidden = !solos;
+    $('solos').innerHTML = '<b>Se arregla solo: ' + miles(solos) + ' celdas</b><ul>' + r.arreglos.map(function (a) {
+      return '<li>' + esc(a.tipo) + ' · <span class="tab">' + miles(a.cantidad) + '</span></li>';
+    }).join('') + '</ul>';
     var todos = r.generales.concat(r.hallazgos);
     function unicos(campo) {
       return todos.map(function (p) { return p[campo]; }).filter(function (v, i, a) { return a.indexOf(v) === i; }).sort(function (a, b) { return a.localeCompare(b, 'es'); });

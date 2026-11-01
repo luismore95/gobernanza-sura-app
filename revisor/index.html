@@ -18,6 +18,7 @@
       <h1 class="title">Revisor de calidad</h1>
       <p class="sub">Gobernanza de datos · ARL SURA · Tus archivos no salen de este computador</p>
     </div>
+    <a class="btn enlace-app" href="../tablero-gobernanza-actual.html">Ver tablero</a>
     <div class="acciones" id="acciones" hidden>
       <button class="btn" id="btnRevisar" type="button">Volver a revisar</button>
       <button class="btn pri" id="btnExcel" type="button">Generar Excel de correcciones</button>
@@ -48,10 +49,12 @@
 
     <section class="principal">
       <div class="kpis">
+        <div class="glass t-green kpi"><b class="tab" id="kListo">0 %</b><span>Listo para cargar</span></div>
         <div class="glass t-red kpi"><b class="tab" id="kAlta">0</b><span>Prioridad alta</span></div>
         <div class="glass t-amber kpi"><b class="tab" id="kMedia">0</b><span>Prioridad media</span></div>
         <div class="glass t-blue kpi"><b class="tab" id="kFilas">0</b><span>Filas revisadas</span></div>
       </div>
+      <div class="glass t-sky solos" id="solos" hidden></div>
       <div class="filtros">
         <div class="chips" id="chips" role="group" aria-label="Prioridad">
           <button type="button" class="chip on" data-p="">Todas</button>
